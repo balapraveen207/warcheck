@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: CI/CD Pipeline
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -27,4 +27,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/myapp:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/jenkins:latest
