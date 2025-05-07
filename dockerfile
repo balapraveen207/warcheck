@@ -1,17 +1,19 @@
+# Stage 1: Build
+FROM openjdk:11-jre-slim AS build
+
+WORKDIR /app
+COPY . .
+RUN apt-get update && \
+    apt-get install -y git-lfs && \
+    git lfs install && \
+    git lfs pull && \
+    rm -rf /var/lib/apt/lists/*
+
+# Stage 2: Runtime
 FROM openjdk:11-jre-slim
 
-# Install Git and Git LFS
-RUN apt-get update && \
-    apt-get install -y git git-lfs && \
-    git lfs install
-
-# Clone the repository and fetch LFS files
-RUN git clone https://github.com/balapraveen207/warcheck.git /repo && \
-    cd /repo && \
-    git lfs pull
-
-# Copy the jenkins.war file
-COPY /repo/jenkins.war /usr/share/jenkins/jenkins.war
+WORKDIR /usr/share/jenkins
+COPY --from=build /app/jenkins.war .
 
 EXPOSE 8080
-CMD ["java", "-jar", "/usr/share/jenkins/jenkins.war"]
+CMD ["java", "-jar", "jenkins.war"]
