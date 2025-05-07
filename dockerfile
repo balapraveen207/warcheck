@@ -6,7 +6,7 @@ RUN apt-get update && \
     git lfs install
 
 # Clone the repository and fetch LFS files
-RUN git clone https://github.com/your-username/your-repo.git /repo && \
+RUN git clone https://github.com/balapraveen207/warcheck.git /repo && \
     cd /repo && \
     git lfs pull
 
