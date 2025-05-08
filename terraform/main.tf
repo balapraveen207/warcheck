@@ -25,10 +25,16 @@ resource "aws_subnet" "public" {
 }
 
 # Private Subnet
-resource "aws_subnet" "private" {
+resource "aws_subnet" "private_1" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.2.0/24"
   availability_zone = "us-east-1b"
+}
+
+resource "aws_subnet" "private_2" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.3.0/24"
+  availability_zone = "us-east-1c"
 }
 
 # Route Table & Association
@@ -102,7 +108,7 @@ resource "aws_instance" "web" {
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
   associate_public_ip_address = true
-  key_name                    = "your-key-name" # Replace with your actual key name
+  key_name                    = "mundapraveen" # Replace with your actual key name
 
   user_data = <<-EOF
               #!/bin/bash
@@ -121,7 +127,7 @@ resource "aws_instance" "web" {
 # RDS Subnet Group
 resource "aws_db_subnet_group" "db_subnets" {
   name       = "db-subnet-group"
-  subnet_ids = [aws_subnet.private.id]
+  subnet_ids = [aws_subnet.private_1.id, aws_subnet.private_2.id]
 
   tags = {
     Name = "My DB subnet group"
@@ -136,7 +142,7 @@ resource "aws_db_instance" "db" {
   instance_class            = "db.t3.micro"
   db_name                   = "mydb"
   username                  = "admin"
-  password                  = "YourPassword123!" # Replace with a secure password
+  password                  = "password123" # Replace with a secure password
   skip_final_snapshot       = true
   db_subnet_group_name      = aws_db_subnet_group.db_subnets.name
   vpc_security_group_ids    = [aws_security_group.db_sg.id]
