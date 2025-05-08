@@ -1,19 +1,19 @@
-# Stage 1: Build
-FROM openjdk:11-jre-slim AS build
+FROM python:3.10-slim
 
-WORKDIR /app
-COPY . .
+# Install git and curl
 RUN apt-get update && \
+    apt-get install -y git curl && \
+    curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \
     apt-get install -y git-lfs && \
-    git lfs install && \
-    git lfs pull && \
     rm -rf /var/lib/apt/lists/*
 
-# Stage 2: Runtime
-FROM openjdk:11-jre-slim
+# Optional if you're cloning repos or using Git inside container
+RUN git lfs install
 
-WORKDIR /usr/share/jenkins
-COPY --from=build /app/jenkins.war .
+# Continue your build...
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
 
-EXPOSE 8080
-CMD ["java", "-jar", "jenkins.war"]
+CMD ["python", "app/main.py"]
