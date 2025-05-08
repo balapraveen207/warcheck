@@ -1,24 +1,24 @@
 variable "aws_region" {
-  default = "us-east-1"
+  description = "AWS region"
 }
 
 variable "vpc_cidr" {
-  default = "10.0.0.0/16"
+  description = "CIDR block for the VPC"
 }
 
 variable "public_subnet_cidr" {
-  default = "10.0.1.0/24"
+  description = "CIDR for the public subnet"
 }
 
 variable "private_subnet_cidr" {
-  default = "10.0.2.0/24"
+  description = "CIDR for the private subnet"
 }
 
 variable "db_username" {
-  default = "admin"
+  description = "Username for the RDS DB"
 }
 
 variable "db_password" {
-  default = "MyStrongPass123!"
-  sensitive = true
+  description = "Password for the RDS DB"
+  sensitive   = true
 }
