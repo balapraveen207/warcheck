@@ -1,3 +1,8 @@
+# Provider Configuration
+provider "aws" {
+  region = var.aws_region
+}
+
 # VPC
 resource "aws_vpc" "main" {
   cidr_block = var.vpc_cidr
@@ -78,10 +83,10 @@ resource "aws_security_group" "db_sg" {
 
 # EC2 Instance
 resource "aws_instance" "web" {
-  ami           = "ami-0c02fb55956c7d316" # Amazon Linux 2 in us-east-1
-  instance_type = "t2.micro"
-  subnet_id     = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.web_sg.id]
+  ami                    = "ami-0c02fb55956c7d316" # Amazon Linux 2 AMI
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.public.id
+  security_groups        = [aws_security_group.web_sg.name]
 
   user_data = <<-EOF
               #!/bin/bash
@@ -107,10 +112,19 @@ resource "aws_db_instance" "db" {
   engine               = "mysql"
   engine_version       = "8.0"
   instance_class       = "db.t3.micro"
-  name                 = "mydb"
+  db_name              = "mydb"  # Corrected to db_name
   username             = var.db_username
   password             = var.db_password
   db_subnet_group_name = aws_db_subnet_group.db_subnets.name
   vpc_security_group_ids = [aws_security_group.db_sg.id]
   skip_final_snapshot  = true
+}
+
+# Output EC2 Public IP and RDS Endpoint
+output "ec2_public_ip" {
+  value = aws_instance.web.public_ip
+}
+
+output "rds_endpoint" {
+  value = aws_db_instance.db.endpoint
 }
