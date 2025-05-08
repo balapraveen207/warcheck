@@ -151,155 +151,113 @@ resource "aws_db_instance" "db" {
   availability_zone         = "us-east-1b"
 }
 
-# SNS Topic & Subscription
-resource "aws_sns_topic" "alerts" {
-  name = "alarm-notifications"
-}
-
-resource "aws_sns_topic_subscription" "email_sub" {
-  topic_arn = aws_sns_topic.alerts.arn
-  protocol  = "email"
-  endpoint  = "your-email@example.com" # Replace with your email
-}
-
-# Lambda Function
-data "archive_file" "lambda_zip" {
-  type        = "zip"
-  output_path = "${path.module}/lambda.zip"
-  source {
-    content  = <<EOF
-exports.handler = async (event) => {
-    console.log("Hello World");
-    return "Hello from Lambda";
-};
-EOF
-    filename = "index.js"
-  }
-}
-
-resource "aws_iam_role" "lambda_exec" {
-  name = "lambda_exec_role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Action = "sts:AssumeRole",
-      Effect = "Allow",
-      Principal = {
-        Service = "lambda.amazonaws.com"
-      }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_logs" {
-  role       = aws_iam_role.lambda_exec.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_lambda_function" "hello" {
-  function_name = "hello-world"
-  role          = aws_iam_role.lambda_exec.arn
-  handler       = "index.handler"
-  runtime       = "nodejs18.x"
-  filename      = data.archive_file.lambda_zip.output_path
-}
-
-# CloudWatch Alarms for EC2
-resource "aws_cloudwatch_metric_alarm" "ec2_cpu_util" {
-  alarm_name          = "EC2-High-CPU"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/EC2"
-  period              = 60
-  statistic           = "Average"
-  threshold           = 70
-  alarm_actions       = [aws_sns_topic.alerts.arn]
+# CloudWatch Metric Alarms
+resource "aws_cloudwatch_metric_alarm" "ec2_status_check_failed" {
+  alarm_name                = "EC2-Status-Check-Failed"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "StatusCheckFailed"
+  namespace                 = "AWS/EC2"
+  period                    = "60"
+  statistic                 = "Maximum"
+  threshold                 = "1"
+  alarm_description         = "Trigger alarm if EC2 instance fails status check"
   dimensions = {
     InstanceId = aws_instance.web.id
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "ec2_status_check" {
-  alarm_name          = "EC2-Status-Check-Failed"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "StatusCheckFailed"
-  namespace           = "AWS/EC2"
-  period              = 60
-  statistic           = "Maximum"
-  threshold           = 0
-  alarm_actions       = [aws_sns_topic.alerts.arn]
+resource "aws_cloudwatch_metric_alarm" "ec2_cpu_utilization" {
+  alarm_name                = "EC2-CPU-Utilization"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "CPUUtilization"
+  namespace                 = "AWS/EC2"
+  period                    = "300"
+  statistic                 = "Average"
+  threshold                 = "80"
+  alarm_description         = "Trigger alarm if EC2 CPU utilization exceeds 80%"
   dimensions = {
     InstanceId = aws_instance.web.id
   }
 }
 
-# CloudWatch Alarms for Lambda
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
-  alarm_name          = "Lambda-Errors"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Errors"
-  namespace           = "AWS/Lambda"
-  period              = 60
-  statistic           = "Sum"
-  threshold           = 0
-  alarm_actions       = [aws_sns_topic.alerts.arn]
+  alarm_name                = "Lambda-Errors"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "Errors"
+  namespace                 = "AWS/Lambda"
+  period                    = "300"
+  statistic                 = "Sum"
+  threshold                 = "1"
+  alarm_description         = "Trigger alarm if Lambda function has errors"
   dimensions = {
-    FunctionName = aws_lambda_function.hello.function_name
+    FunctionName = "hello-world"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
-  alarm_name          = "Lambda-High-Duration"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Duration"
-  namespace           = "AWS/Lambda"
-  period              = 60
-  statistic           = "Average"
-  threshold           = 1000
-  alarm_actions       = [aws_sns_topic.alerts.arn]
+  alarm_name                = "Lambda-Duration"
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = "1"
+  metric_name               = "Duration"
+  namespace                 = "AWS/Lambda"
+  period                    = "300"
+  statistic                 = "Average"
+  threshold                 = "2000"
+  alarm_description         = "Trigger alarm if Lambda function duration exceeds 2 seconds"
   dimensions = {
-    FunctionName = aws_lambda_function.hello.function_name
+    FunctionName = "hello-world"
   }
 }
 
 # CloudWatch Dashboard
 resource "aws_cloudwatch_dashboard" "main" {
   dashboard_name = "infra-dashboard"
-
   dashboard_body = jsonencode({
     widgets = [
       {
         type = "metric",
-        x = 0,
-        y = 0,
+        x    = 0,
+        y    = 0,
         width = 12,
         height = 6,
         properties = {
           metrics = [
-            [ "AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.web.id ],
-            [ ".", "StatusCheckFailed", ".", "." ]
+            [ "AWS/Lambda", "Errors", "FunctionName", "my-lambda-function" ]
           ],
-          title = "EC2 Metrics"
+          view     = "timeSeries",
+          region   = "us-east-1",
+          stat     = "Sum",
+          period   = 300
         }
       },
       {
         type = "metric",
-        x = 12,
-        y = 0,
+        x    = 0,
+        y    = 6,
         width = 12,
         height = 6,
         properties = {
           metrics = [
-            [ "AWS/Lambda", "Errors", "FunctionName", aws_lambda_function.hello.function_name ],
-            [ ".", "Duration", ".", "." ]
+            [ "AWS/EC2", "CPUUtilization", "InstanceId", "i-0123456789abcdef0" ]
           ],
-          title = "Lambda Metrics"
+          view     = "timeSeries",
+          region   = "us-east-1",
+          stat     = "Average",
+          period   = 300
         }
       }
     ]
   })
+}
+
+
+output "ec2_instance_public_ip" {
+  value = aws_instance.web.public_ip
+}
+
+output "rds_endpoint" {
+  value = aws_db_instance.db.endpoint
 }
